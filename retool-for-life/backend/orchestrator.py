@@ -26,12 +26,15 @@ except ImportError:
         )
         print("Using OpenAI Agents SDK v2")
     except ImportError:
-        # Fallback to v1 agents
-        from agents import (
-            WellnessAgent, SleepOptimizationAgent,
-            StressManagementAgent, FitnessAgent, NutritionAgent
+        # Fallback to SDK agents
+        from agents_sdk import (
+            WellnessAgentSDK as WellnessAgent,
+            SleepOptimizationAgentSDK as SleepOptimizationAgent,
+            StressManagementAgentSDK as StressManagementAgent,
+            FitnessAgentSDK as FitnessAgent,
+            NutritionAgentSDK as NutritionAgent
         )
-        print("Using legacy agents implementation")
+        print("Using SDK agents implementation")
 
 # Import WhatsApp agents
 try:

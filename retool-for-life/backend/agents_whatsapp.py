@@ -1,4 +1,3 @@
-#!/Users/gabefish/whatsapp-agent-clean/venv/bin/python
 import os
 import json
 import asyncio
@@ -16,13 +15,17 @@ except ImportError:
     from dotenv import load_dotenv
     load_dotenv()
 
-# Install required packages if not already installed
+# Import from openai-agents SDK
 try:
-    from agents import Agent, function_tool, Runner
+    from openai_agents import Agent, function_tool, Runner
 except ImportError:
-    import subprocess, sys
-    subprocess.run([sys.executable, "-m", "pip", "install", "openai-agents"], check=True)
-    from agents import Agent, function_tool, Runner
+    try:
+        # Try alternative import path
+        from agents import Agent, function_tool, Runner
+    except ImportError:
+        import subprocess, sys
+        subprocess.run([sys.executable, "-m", "pip", "install", "openai-agents"], check=True)
+        from openai_agents import Agent, function_tool, Runner
 
 # Install Twilio SDK if missing
 try:
@@ -60,9 +63,6 @@ TWILIO_WHATSAPP_FROM  = os.getenv("TWILIO_WHATSAPP_FROM")   # e.g. "whatsapp:+14
 HUMAN_WHATSAPP_NUMBER = os.getenv("HUMAN_WHATSAPP_NUMBER")  # e.g. "+12675744122" or "whatsapp:+12675744122"
 OPENAI_API_KEY        = os.getenv("OPENAI_API_KEY")
 
-# TextBelt configuration
-TEXTBELT_API_KEY = "f8bc4da08cae40cef83ea15c86a90054cbe58ba4ZS6PF51oFdHbMtxKZacIefamQ"
-
 missing = [
     name for name, val in [
         ("TWILIO_ACCOUNT_SID", TWILIO_ACCOUNT_SID),
@@ -80,9 +80,6 @@ if not TWILIO_WHATSAPP_FROM.startswith("whatsapp:"):
     TWILIO_WHATSAPP_FROM = "whatsapp:" + TWILIO_WHATSAPP_FROM
 if not HUMAN_WHATSAPP_NUMBER.startswith("whatsapp:"):
     HUMAN_WHATSAPP_NUMBER = "whatsapp:" + HUMAN_WHATSAPP_NUMBER
-
-# Extract phone number for SMS (remove whatsapp: prefix)
-SMS_PHONE_NUMBER = HUMAN_WHATSAPP_NUMBER.replace("whatsapp:", "")
 
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
@@ -124,31 +121,6 @@ def send_whatsapp_text(message: str) -> str:
     return "Error sending WhatsApp: exceeded retry attempts"
 
 
-def send_textbelt_sms(message: str) -> str:
-    """
-    Sends an SMS via TextBelt API.
-    Returns a summary string.
-    """
-    try:
-        response = requests.post('https://textbelt.com/text', {
-            'phone': SMS_PHONE_NUMBER,
-            'message': message,
-            'key': TEXTBELT_API_KEY,
-        })
-        result = response.json()
-        
-        if result.get('success'):
-            logging.info(f"TextBelt SMS sent successfully: {result}")
-            return f"Sent SMS via TextBelt (success: {result.get('success')})"
-        else:
-            error_msg = result.get('error', 'Unknown error')
-            logging.error(f"TextBelt SMS failed: {error_msg}")
-            return f"Error sending SMS: {error_msg}"
-    except Exception as e:
-        logging.error(f"TextBelt SMS exception: {e}")
-        return f"Error sending SMS: {e}"
-
-
 def start_screentime_limit_action() -> str:
     """
     Sends a WhatsApp notification that screentime limits activate at 10 PM.
@@ -163,18 +135,9 @@ def activate_screentime_action() -> str:
     """
     Sends a WhatsApp notification that screentime is now ON.
     """
-    message = "Distracting apps are now limited, brightness is dimmed. Alarm for 8:00AM is set!"
+    message = "Screentime is now ON. Your distracting apps have been limited."
     result = send_whatsapp_text(message)
     logging.info(f"activate_screentime_action → {result}")
-    return result
-
-
-def send_sleep_mode_sms() -> str:
-    """
-    Sends "SLEEP_MODE_ON" SMS via TextBelt at 10 PM.
-    """
-    result = send_textbelt_sms("SLEEP_MODE_ON")
-    logging.info(f"send_sleep_mode_sms → {result}")
     return result
 
 
@@ -233,7 +196,7 @@ def ask_move_meeting() -> str:
 
 orchestrator_agent = Agent(
     name="OrchestratorAgent",
-    model="gpt-4o-mini",
+    model="gpt-4.1",
     instructions="""
 You are a daily health‐and‐productivity assistant, and you only run at 9:00 AM:
 
@@ -242,7 +205,6 @@ You are a daily health‐and‐productivity assistant, and you only run at 9:00 
      • Notes last night's sleep duration and quality.
      • Says: "To reach 8 hours tomorrow night:
          – Move the 7:30 AM 1:1 tomorrow to an available slot.
-         – Set an 8:00 AM alarm for tomorrow.
          – Enable screentime limits at 10 PM tonight."
 3. Call send_text with exactly that message.
 4. Call ask_move_meeting() to send the "move meeting" prompt.
@@ -278,16 +240,82 @@ async def main():
     print("⏰ Waiting 10 seconds before 10:00 PM event...\n")
     await asyncio.sleep(10)
 
-    # 3) Simulate 10:00 PM by calling activate_screentime_action(), send_sleep_mode_sms() & run_shortcut_action()
-    print("\n[Trigger] Direct call: activate_screentime_action(), send_sleep_mode_sms() & run_shortcut_action()\n")
+    # 3) Simulate 10:00 PM by calling activate_screentime_action() & run_shortcut_action()
+    print("\n[Trigger] Direct call: activate_screentime_action() & run_shortcut_action()\n")
     result_10pm_msg = activate_screentime_action()
     print("→ activate_screentime_action result:", result_10pm_msg)
-    result_10pm_sms = send_sleep_mode_sms()
-    print("→ send_sleep_mode_sms result:", result_10pm_sms)
     result_10pm_shortcut = run_shortcut_action()
     print("→ run_shortcut_action result:", result_10pm_shortcut, "\n")
 
     print("\n✅ All steps complete. ✅\n")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# WHATSAPP AGENT CLASSES FOR ORCHESTRATOR INTEGRATION
+# ──────────────────────────────────────────────────────────────────────────────
+
+class WhatsAppWellnessAgent:
+    """WhatsApp wellness agent for orchestrator integration"""
+    
+    def __init__(self, user_profile: dict, model: str = "gpt-4o"):
+        self.user_profile = user_profile
+        self.model = model
+        self.name = f"WhatsApp Wellness Agent for {user_profile['name']}"
+        self.agent = orchestrator_agent  # Use the pre-configured agent
+        
+    async def process_message(self, user_message: str) -> dict:
+        """Process a user message and return agent response"""
+        try:
+            result = await Runner.run(self.agent, user_message)
+            return {
+                "message": str(result),
+                "tool_calls": [],
+                "success": True
+            }
+        except Exception as e:
+            logging.error(f"Error processing message: {str(e)}")
+            return {
+                "message": "I encountered an error processing your request.",
+                "tool_calls": [],
+                "success": False,
+                "error": str(e)
+            }
+
+
+class WhatsAppSleepAgent(WhatsAppWellnessAgent):
+    """WhatsApp sleep optimization agent"""
+    
+    def __init__(self, user_profile: dict, model: str = "gpt-4o"):
+        super().__init__(user_profile, model)
+        self.name = f"WhatsApp Sleep Agent for {user_profile['name']}"
+        
+        # Create specialized sleep agent
+        self.agent = Agent(
+            name="WhatsAppSleepAgent",
+            model=model,
+            instructions=f"""
+            You are a WhatsApp-based sleep optimization specialist for {user_profile['name']}.
+            
+            User profile:
+            - Sleep average: {user_profile['health_metrics']['avg_sleep_hours']} hours
+            - Work schedule: {user_profile['schedule']['work_hours']}
+            - Stress level: {user_profile['health_metrics']['stress_level']}
+            
+            For the demo workflow:
+            - At 09:00: Call get_sleep_data, analyze it, and send WhatsApp recap with emoji indicators
+            - At 19:30: Send WhatsApp reminder about 22:00 screen-time lock
+            - At 22:00: Send confirmation that apps are locked and execute shortcut
+            - At 22:05: Search for best OTC melatonin and send recommendations
+            - At 22:06: Process purchase if approved
+            
+            Use WhatsApp formatting:
+            - *bold* for emphasis
+            - _italics_ for secondary info
+            - Emojis for visual appeal
+            - Keep messages concise for mobile
+            """,
+            tools=[get_sleep_data, send_text, ask_move_meeting]
+        )
 
 
 # Run the demo

@@ -82,7 +82,7 @@
         "midday_reminder": "13:00",
         "evening_wind_down": "22:00"
       },
-      "messaging_channel": "sms"
+      "messaging_channel": "whatsapp"
     },
     "recent_wellness_purchases": [
       {

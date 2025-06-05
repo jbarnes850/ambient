@@ -12,7 +12,7 @@ import uuid
 
 from config import settings
 from orchestrator import MetaAgentOrchestrator, RLAIFOptimizer, load_test_scenarios
-from agents import WellnessAgent
+from agents_sdk import WellnessAgentSDK as WellnessAgent
 from tools import approve_action, get_pending_approvals
 from mock_apis import MockHealthAPI
 
