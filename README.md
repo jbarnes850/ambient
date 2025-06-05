@@ -95,14 +95,6 @@ Our agents execute a complete wellness workflow throughout the day:
 | **22:06** | 🛒 Purchase approved items (sandbox mode) | Commerce API |
 | **02:00** | 🧠 RLAIF optimization based on day's performance | Trace Analysis |
 
-## 🔥 Key Features for Judges
-
-1. **One-Click Setup**: No configuration needed - just select a user and click "Generate"
-2. **Real-Time Visualization**: Watch agent generation, evaluation scores, and live actions
-3. **WhatsApp Integration**: Real messaging via Twilio (not just mocks!)
-4. **Approval System**: Human-in-the-loop for sensitive actions like purchases
-5. **RLAIF Self-Improvement**: See the agent evolve based on performance metrics
-6. **Complete Trace Visibility**: Every action is logged and viewable
 
 ## 📱 Demo Instructions
 
