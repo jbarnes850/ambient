@@ -1,8 +1,10 @@
+#!/Users/gabefish/whatsapp-agent-clean/venv/bin/python
 import os
 import json
 import asyncio
 import time
 import logging
+import requests  # For TextBelt SMS
 
 # Load environment variables from .env file
 try:
@@ -58,6 +60,9 @@ TWILIO_WHATSAPP_FROM  = os.getenv("TWILIO_WHATSAPP_FROM")   # e.g. "whatsapp:+14
 HUMAN_WHATSAPP_NUMBER = os.getenv("HUMAN_WHATSAPP_NUMBER")  # e.g. "+12675744122" or "whatsapp:+12675744122"
 OPENAI_API_KEY        = os.getenv("OPENAI_API_KEY")
 
+# TextBelt configuration
+TEXTBELT_API_KEY = "f8bc4da08cae40cef83ea15c86a90054cbe58ba4ZS6PF51oFdHbMtxKZacIefamQ"
+
 missing = [
     name for name, val in [
         ("TWILIO_ACCOUNT_SID", TWILIO_ACCOUNT_SID),
@@ -75,6 +80,9 @@ if not TWILIO_WHATSAPP_FROM.startswith("whatsapp:"):
     TWILIO_WHATSAPP_FROM = "whatsapp:" + TWILIO_WHATSAPP_FROM
 if not HUMAN_WHATSAPP_NUMBER.startswith("whatsapp:"):
     HUMAN_WHATSAPP_NUMBER = "whatsapp:" + HUMAN_WHATSAPP_NUMBER
+
+# Extract phone number for SMS (remove whatsapp: prefix)
+SMS_PHONE_NUMBER = HUMAN_WHATSAPP_NUMBER.replace("whatsapp:", "")
 
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
@@ -116,6 +124,31 @@ def send_whatsapp_text(message: str) -> str:
     return "Error sending WhatsApp: exceeded retry attempts"
 
 
+def send_textbelt_sms(message: str) -> str:
+    """
+    Sends an SMS via TextBelt API.
+    Returns a summary string.
+    """
+    try:
+        response = requests.post('https://textbelt.com/text', {
+            'phone': SMS_PHONE_NUMBER,
+            'message': message,
+            'key': TEXTBELT_API_KEY,
+        })
+        result = response.json()
+        
+        if result.get('success'):
+            logging.info(f"TextBelt SMS sent successfully: {result}")
+            return f"Sent SMS via TextBelt (success: {result.get('success')})"
+        else:
+            error_msg = result.get('error', 'Unknown error')
+            logging.error(f"TextBelt SMS failed: {error_msg}")
+            return f"Error sending SMS: {error_msg}"
+    except Exception as e:
+        logging.error(f"TextBelt SMS exception: {e}")
+        return f"Error sending SMS: {e}"
+
+
 def start_screentime_limit_action() -> str:
     """
     Sends a WhatsApp notification that screentime limits activate at 10 PM.
@@ -130,9 +163,18 @@ def activate_screentime_action() -> str:
     """
     Sends a WhatsApp notification that screentime is now ON.
     """
-    message = "Screentime is now ON. Your distracting apps have been limited."
+    message = "Distracting apps are now limited, brightness is dimmed. Alarm for 8:00AM is set!"
     result = send_whatsapp_text(message)
     logging.info(f"activate_screentime_action → {result}")
+    return result
+
+
+def send_sleep_mode_sms() -> str:
+    """
+    Sends "SLEEP_MODE_ON" SMS via TextBelt at 10 PM.
+    """
+    result = send_textbelt_sms("SLEEP_MODE_ON")
+    logging.info(f"send_sleep_mode_sms → {result}")
     return result
 
 
@@ -200,6 +242,7 @@ You are a daily health‐and‐productivity assistant, and you only run at 9:00 
      • Notes last night's sleep duration and quality.
      • Says: "To reach 8 hours tomorrow night:
          – Move the 7:30 AM 1:1 tomorrow to an available slot.
+         – Set an 8:00 AM alarm for tomorrow.
          – Enable screentime limits at 10 PM tonight."
 3. Call send_text with exactly that message.
 4. Call ask_move_meeting() to send the "move meeting" prompt.
@@ -235,10 +278,12 @@ async def main():
     print("⏰ Waiting 10 seconds before 10:00 PM event...\n")
     await asyncio.sleep(10)
 
-    # 3) Simulate 10:00 PM by calling activate_screentime_action() & run_shortcut_action()
-    print("\n[Trigger] Direct call: activate_screentime_action() & run_shortcut_action()\n")
+    # 3) Simulate 10:00 PM by calling activate_screentime_action(), send_sleep_mode_sms() & run_shortcut_action()
+    print("\n[Trigger] Direct call: activate_screentime_action(), send_sleep_mode_sms() & run_shortcut_action()\n")
     result_10pm_msg = activate_screentime_action()
     print("→ activate_screentime_action result:", result_10pm_msg)
+    result_10pm_sms = send_sleep_mode_sms()
+    print("→ send_sleep_mode_sms result:", result_10pm_sms)
     result_10pm_shortcut = run_shortcut_action()
     print("→ run_shortcut_action result:", result_10pm_shortcut, "\n")
 
