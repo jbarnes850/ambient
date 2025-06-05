@@ -79,11 +79,18 @@ class WellnessAgentSDK:
     async def process_message(self, user_message: str) -> Dict[str, Any]:
         """Process a user message and return agent response"""
         try:
-            # Run the agent synchronously (SDK doesn't have async support yet)
-            result = Runner.run_sync(self.agent, user_message)
+            # Use sync_to_async to handle the synchronous SDK in async context
+            import asyncio
+            loop = asyncio.get_event_loop()
+            result = await loop.run_in_executor(
+                None, 
+                Runner.run_sync, 
+                self.agent, 
+                user_message
+            )
             
             return {
-                "message": result.final_output,
+                "message": result.final_output if hasattr(result, 'final_output') else str(result),
                 "tool_calls": [],  # SDK handles tool calls internally
                 "success": True
             }

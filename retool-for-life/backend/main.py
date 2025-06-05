@@ -214,8 +214,8 @@ async def get_agent_status(user_id: str):
     
     # Get agent ID
     agent_id = None
-    for aid, uid in [(aid, uid) for aid in app_state.agent_traces.keys() if uid in aid]:
-        if user_id in uid:
+    for aid in app_state.agent_traces.keys():
+        if user_id in aid:
             agent_id = aid
             break
     

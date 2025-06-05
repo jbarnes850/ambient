@@ -5,8 +5,8 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'ReTool-for-Life Console',
-  description: 'Meta-agent wellness platform with autonomous agents',
+  title: 'Ambient',
+  description: 'Personalized wellness agent platform',
 }
 
 export default function RootLayout({

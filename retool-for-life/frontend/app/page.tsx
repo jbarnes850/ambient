@@ -125,6 +125,9 @@ export default function Dashboard() {
       if (response.ok) {
         const data = await response.json();
         setAgentStatus(data);
+      } else if (response.status === 404) {
+        // No agent generated yet - this is normal
+        setAgentStatus(null);
       }
     } catch (error) {
       console.error('Failed to fetch status:', error);
@@ -142,13 +145,19 @@ export default function Dashboard() {
         `/api/users/${selectedUser.id}/trigger-demo`,
         { method: 'POST' }
       );
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
       const data = await response.json();
-      setDemoResults(data.demo_results);
+      setDemoResults(data.demo_results || []);
       
       // Refresh status after demo
       setTimeout(() => fetchAgentStatus(), 1000);
     } catch (error) {
       console.error('Failed to run demo:', error);
+      setDemoResults([]);
     } finally {
       setIsDemoRunning(false);
     }
@@ -184,8 +193,8 @@ export default function Dashboard() {
       <div className="container mx-auto p-4 space-y-4">
         <header className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold">ReTool-for-Life Console</h1>
-            <p className="text-muted-foreground">Meta-agent wellness platform</p>
+            <h1 className="text-3xl font-bold">Ambient</h1>
+            <p className="text-muted-foreground">Personalized wellness agent platform</p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant={isConnected ? 'default' : 'secondary'}>
@@ -193,18 +202,32 @@ export default function Dashboard() {
             </Badge>
             {agentStatus && (
               <Badge variant="outline">
-                Agent v{agentStatus.agent.version}
+                v{agentStatus.agent.version}
               </Badge>
             )}
           </div>
         </header>
 
+        {/* Info Section */}
+        {!agentStatus && (
+          <div className="mb-6 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Brain className="w-5 h-5 text-primary" />
+              <h2 className="text-lg font-semibold">System Overview</h2>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              The system automatically generates, evaluates, and deploys personalized agents based on user profiles.
+              Performance metrics are tracked and optimized through machine learning feedback loops.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* User Selection & Setup Panel */}
           <Card>
             <CardHeader>
-              <CardTitle>Agent Setup</CardTitle>
-              <CardDescription>Select user and generate wellness agent</CardDescription>
+              <CardTitle>Agent Configuration</CardTitle>
+              <CardDescription>Select user profile and initialize agent</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* User Selection */}
@@ -252,13 +275,14 @@ export default function Dashboard() {
                   onClick={generateAgent}
                   disabled={!selectedUser || isGenerating || !!agentStatus}
                   className="w-full"
+                  size="lg"
                 >
                   {isGenerating ? (
-                    <>Generating Wellness Agents...</>
+                    <>Generating agent...</>
                   ) : agentStatus ? (
                     <>Agent Active: {agentStatus.agent.type}</>
                   ) : (
-                    <>Generate Wellness Agent</>
+                    <>Generate Agent</>
                   )}
                 </Button>
                 
@@ -267,9 +291,10 @@ export default function Dashboard() {
                     onClick={runDemo} 
                     variant="outline" 
                     className="w-full"
+                    size="lg"
                     disabled={isDemoRunning}
                   >
-                    {isDemoRunning ? 'Running Demo...' : 'Run Demo Sequence'}
+                    {isDemoRunning ? 'Running demo sequence...' : 'Run Demo Sequence'}
                   </Button>
                 )}
               </div>
@@ -279,8 +304,8 @@ export default function Dashboard() {
           {/* Live Actions & Approvals */}
           <Card>
             <CardHeader>
-              <CardTitle>Live Agent Actions</CardTitle>
-              <CardDescription>Real-time agent activity and approvals</CardDescription>
+              <CardTitle>Agent Activity</CardTitle>
+              <CardDescription>Real-time monitoring and approval system</CardDescription>
             </CardHeader>
             <CardContent>
               <Tabs defaultValue="actions">
@@ -308,7 +333,7 @@ export default function Dashboard() {
                     ))}
                   </AnimatePresence>
                   
-                  {demoResults.length > 0 && (
+                  {demoResults && demoResults.length > 0 && (
                     <div className="mt-4 space-y-2">
                       <h4 className="text-sm font-medium">Demo Results</h4>
                       {demoResults.map((result, idx) => (
@@ -366,8 +391,8 @@ export default function Dashboard() {
           {/* Performance & Observability */}
           <Card>
             <CardHeader>
-              <CardTitle>Performance & Evolution</CardTitle>
-              <CardDescription>Agent performance metrics and optimization</CardDescription>
+              <CardTitle>Performance Metrics</CardTitle>
+              <CardDescription>System optimization and performance tracking</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {agentStatus?.performance && (
