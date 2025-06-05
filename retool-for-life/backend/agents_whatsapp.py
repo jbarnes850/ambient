@@ -36,11 +36,12 @@ except ImportError:
     from twilio.rest import Client as TwilioClient
 
 # (Optional) If running in a Jupyter/Colab environment, enable async event loop nesting
-try:
-    import nest_asyncio
-    nest_asyncio.apply()
-except ImportError:
-    pass
+# Disabled for FastAPI/uvloop compatibility
+# try:
+#     import nest_asyncio
+#     nest_asyncio.apply()
+# except ImportError:
+#     pass
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CONFIGURATION & LOGGING
