@@ -82,34 +82,36 @@ class WellnessAgentSDK:
             # Configure tracing
             config = RunConfig(
                 tracing_disabled=not capture_traces,
-                trace_include_sensitive_data=False  # Privacy-conscious by default
+                trace_include_sensitive_data=True  # Enable for full trace visibility
             )
             
             # Use sync_to_async to handle the synchronous SDK in async context
             import asyncio
             loop = asyncio.get_event_loop()
             
+            # Generate unique trace ID
+            trace_id = f"trace_{int(datetime.now().timestamp() * 1000000)}"
+            
             # Run with tracing context
-            with trace(f"Agent evaluation: {self.name}"):
+            current_trace = None
+            with trace(f"Agent evaluation: {self.name}", trace_id=trace_id) as current_trace:
                 result = await loop.run_in_executor(
                     None, 
                     lambda: Runner.run_sync(self.agent, user_message, config=config)
                 )
             
-            # Extract trace data if available
+            # Extract comprehensive trace data if available
             trace_data = None
-            if capture_traces and hasattr(result, 'trace'):
-                trace_data = {
-                    "trace_id": getattr(result.trace, 'id', None),
-                    "spans": getattr(result.trace, 'spans', []),
-                    "events": getattr(result.trace, 'events', [])
-                }
+            if capture_traces and current_trace:
+                trace_data = self._extract_comprehensive_trace_data(current_trace, result)
             
             return {
                 "message": result.final_output if hasattr(result, 'final_output') else str(result),
                 "tool_calls": [],  # SDK handles tool calls internally
                 "success": True,
-                "trace_data": trace_data
+                "trace_data": trace_data,
+                "reasoning": result.final_output if hasattr(result, 'final_output') else str(result)[:500],
+                "tools_used": self._extract_tools_used(result)
             }
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
@@ -118,8 +120,137 @@ class WellnessAgentSDK:
                 "tool_calls": [],
                 "success": False,
                 "error": str(e),
-                "trace_data": None
+                "trace_data": None,
+                "reasoning": f"Error occurred: {str(e)}",
+                "tools_used": []
             }
+    
+    def _extract_comprehensive_trace_data(self, trace_obj: Any, result: Any) -> Dict[str, Any]:
+        """Extract comprehensive trace data from OpenAI SDK trace object"""
+        try:
+            # Get trace information
+            trace_data = {
+                "trace_id": getattr(trace_obj, 'trace_id', f"trace_{int(datetime.now().timestamp())}"),
+                "workflow_name": getattr(trace_obj, 'workflow_name', f"Agent evaluation: {self.name}"),
+                "started_at": getattr(trace_obj, 'started_at', datetime.now().isoformat()),
+                "ended_at": getattr(trace_obj, 'ended_at', datetime.now().isoformat()),
+                "spans": [],
+                "events": [],
+                "metadata": getattr(trace_obj, 'metadata', {}),
+                "total_duration_ms": 0,
+                "llm_generations": [],
+                "function_calls": [],
+                "agent_steps": []
+            }
+            
+            # Extract spans if available
+            spans = getattr(trace_obj, 'spans', [])
+            for span in spans:
+                span_info = self._extract_span_data(span)
+                trace_data["spans"].append(span_info)
+                
+                # Categorize spans by type
+                span_type = span_info.get("span_type", "")
+                if "generation" in span_type.lower():
+                    trace_data["llm_generations"].append(span_info)
+                elif "function" in span_type.lower():
+                    trace_data["function_calls"].append(span_info)
+                elif "agent" in span_type.lower():
+                    trace_data["agent_steps"].append(span_info)
+            
+            # Calculate total duration
+            if trace_data["started_at"] and trace_data["ended_at"]:
+                try:
+                    start = datetime.fromisoformat(trace_data["started_at"].replace("Z", "+00:00"))
+                    end = datetime.fromisoformat(trace_data["ended_at"].replace("Z", "+00:00"))
+                    trace_data["total_duration_ms"] = (end - start).total_seconds() * 1000
+                except:
+                    pass
+            
+            # Extract events
+            events = getattr(trace_obj, 'events', [])
+            for event in events:
+                event_info = {
+                    "timestamp": getattr(event, 'timestamp', datetime.now().isoformat()),
+                    "event_type": type(event).__name__,
+                    "data": getattr(event, 'data', {})
+                }
+                trace_data["events"].append(event_info)
+            
+            return trace_data
+            
+        except Exception as e:
+            logger.error(f"Error extracting trace data: {str(e)}")
+            return {
+                "trace_id": f"trace_{int(datetime.now().timestamp())}",
+                "error": f"Failed to extract trace data: {str(e)}",
+                "spans": [],
+                "events": []
+            }
+    
+    def _extract_span_data(self, span: Any) -> Dict[str, Any]:
+        """Extract detailed data from a single span"""
+        try:
+            span_info = {
+                "span_id": getattr(span, 'span_id', None),
+                "parent_id": getattr(span, 'parent_id', None),
+                "span_type": type(span).__name__ if hasattr(span, "__class__") else "unknown",
+                "started_at": getattr(span, 'started_at', None),
+                "ended_at": getattr(span, 'ended_at', None),
+                "duration_ms": None,
+                "span_data": {}
+            }
+            
+            # Calculate duration
+            if span_info["started_at"] and span_info["ended_at"]:
+                try:
+                    start = datetime.fromisoformat(str(span_info["started_at"]).replace("Z", "+00:00"))
+                    end = datetime.fromisoformat(str(span_info["ended_at"]).replace("Z", "+00:00"))
+                    span_info["duration_ms"] = (end - start).total_seconds() * 1000
+                except:
+                    pass
+            
+            # Extract span-specific data
+            if hasattr(span, 'span_data'):
+                span_data = span.span_data
+                if hasattr(span_data, '__dict__'):
+                    span_info["span_data"] = {}
+                    for key, value in span_data.__dict__.items():
+                        if not key.startswith('_'):
+                            # Convert non-serializable objects to strings
+                            try:
+                                json.dumps(value)  # Test if serializable
+                                span_info["span_data"][key] = value
+                            except:
+                                span_info["span_data"][key] = str(value)
+            
+            return span_info
+            
+        except Exception as e:
+            logger.error(f"Error extracting span data: {str(e)}")
+            return {
+                "span_type": "error",
+                "error": str(e)
+            }
+    
+    def _extract_tools_used(self, result: Any) -> List[str]:
+        """Extract list of tools used during execution"""
+        tools_used = []
+        
+        # Try to extract tool information from result
+        if hasattr(result, 'tool_calls'):
+            for tool_call in result.tool_calls:
+                tool_name = getattr(tool_call, 'name', getattr(tool_call, 'tool_name', 'unknown'))
+                if tool_name not in tools_used:
+                    tools_used.append(tool_name)
+        
+        # Also check our registered tools
+        available_tools = list(self.tools.keys())
+        for tool in available_tools:
+            if tool in str(result):
+                tools_used.append(tool)
+        
+        return tools_used
     
     async def execute_demo_task(self, task_description: str) -> Dict[str, Any]:
         """Execute a specific demo task"""

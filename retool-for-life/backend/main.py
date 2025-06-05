@@ -262,6 +262,116 @@ async def get_evaluation_traces():
     }
 
 
+@app.get("/api/traces/{trace_id}/full")
+async def get_full_trace_data(trace_id: str):
+    """Get complete trace data including all spans and execution details"""
+    
+    # Search through all stored traces to find the requested trace_id
+    full_trace_data = None
+    
+    # Check agent traces
+    for agent_id, traces in app_state.agent_traces.items():
+        for trace in traces:
+            if trace.get("trace_data", {}).get("trace_id") == trace_id:
+                full_trace_data = trace
+                break
+        if full_trace_data:
+            break
+    
+    # Check evaluation traces
+    if not full_trace_data:
+        for agent_name, agent_traces in app_state.evaluation_traces.items():
+            for trace in agent_traces:
+                if trace.get("trace_data", {}).get("trace_id") == trace_id:
+                    full_trace_data = trace
+                    break
+            if full_trace_data:
+                break
+    
+    if not full_trace_data:
+        raise HTTPException(status_code=404, detail="Trace not found")
+    
+    return {
+        "trace_id": trace_id,
+        "full_trace": full_trace_data,
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+@app.get("/api/traces/{trace_id}/spans")
+async def get_trace_spans(trace_id: str):
+    """Get detailed span information for a trace including OpenAI SDK spans"""
+    
+    # Get the full trace data first
+    full_trace_response = await get_full_trace_data(trace_id)
+    trace_data = full_trace_response["full_trace"].get("trace_data", {})
+    
+    # Extract spans from OpenAI SDK trace data
+    spans = trace_data.get("spans", [])
+    events = trace_data.get("events", [])
+    
+    # Structure the span data for frontend consumption
+    structured_spans = []
+    for span in spans:
+        span_info = {
+            "span_id": getattr(span, "span_id", None),
+            "parent_id": getattr(span, "parent_id", None),
+            "span_type": type(span).__name__ if hasattr(span, "__class__") else "unknown",
+            "started_at": getattr(span, "started_at", None),
+            "ended_at": getattr(span, "ended_at", None),
+            "duration_ms": None,
+            "span_data": {}
+        }
+        
+        # Calculate duration if timestamps available
+        if span_info["started_at"] and span_info["ended_at"]:
+            try:
+                start = datetime.fromisoformat(span_info["started_at"].replace("Z", "+00:00"))
+                end = datetime.fromisoformat(span_info["ended_at"].replace("Z", "+00:00"))
+                span_info["duration_ms"] = (end - start).total_seconds() * 1000
+            except:
+                pass
+        
+        # Extract span-specific data based on type
+        if hasattr(span, "span_data"):
+            span_data = span.span_data
+            if hasattr(span_data, "__dict__"):
+                span_info["span_data"] = {k: v for k, v in span_data.__dict__.items() if not k.startswith("_")}
+        
+        structured_spans.append(span_info)
+    
+    return {
+        "trace_id": trace_id,
+        "spans": structured_spans,
+        "events": events,
+        "total_spans": len(structured_spans),
+        "execution_hierarchy": _build_span_hierarchy(structured_spans),
+        "timestamp": datetime.now().isoformat()
+    }
+
+
+def _build_span_hierarchy(spans: List[Dict]) -> List[Dict]:
+    """Build a hierarchical view of spans for better visualization"""
+    
+    # Create a map of span_id to span
+    span_map = {span["span_id"]: span for span in spans if span["span_id"]}
+    
+    # Find root spans (no parent)
+    root_spans = [span for span in spans if not span["parent_id"]]
+    
+    def build_children(parent_span):
+        children = [span for span in spans if span["parent_id"] == parent_span["span_id"]]
+        for child in children:
+            child["children"] = build_children(child)
+        return children
+    
+    # Build hierarchy
+    for root in root_spans:
+        root["children"] = build_children(root)
+    
+    return root_spans
+
+
 @app.post("/api/users/{user_id}/chat")
 async def chat_with_agent(user_id: str, message: dict):
     """Chat with the user's wellness agent"""

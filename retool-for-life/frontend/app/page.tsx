@@ -1168,127 +1168,305 @@ function TracesModal({
   onClose: () => void; 
   evaluationTraces?: any; 
 }) {
+  const [selectedTrace, setSelectedTrace] = useState<any>(null);
+  const [viewMode, setViewMode] = useState<'summary' | 'detailed'>('summary');
+  const [expandedSpans, setExpandedSpans] = useState<Set<string>>(new Set());
+
   if (!isOpen) return null;
+
+  const fetchFullTraceData = async (traceId: string) => {
+    try {
+      const response = await fetch(`/api/traces/${traceId}/spans`);
+      if (response.ok) {
+        const data = await response.json();
+        setSelectedTrace(data);
+        setViewMode('detailed');
+      }
+    } catch (error) {
+      console.error('Failed to fetch trace data:', error);
+    }
+  };
+
+  const toggleSpanExpansion = (spanId: string) => {
+    const newExpanded = new Set(expandedSpans);
+    if (newExpanded.has(spanId)) {
+      newExpanded.delete(spanId);
+    } else {
+      newExpanded.add(spanId);
+    }
+    setExpandedSpans(newExpanded);
+  };
+
+  const renderSpanHierarchy = (spans: any[], level: number = 0) => {
+    return spans.map((span: any) => (
+      <div key={span.span_id} className={`ml-${level * 4} space-y-2`}>
+        <div 
+          className="p-2 bg-secondary rounded border-l-2 border-primary/20 cursor-pointer hover:bg-secondary/80"
+          onClick={() => toggleSpanExpansion(span.span_id)}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-mono bg-primary/10 px-1 rounded">
+                {span.span_type}
+              </span>
+              <span className="text-sm">{span.span_id}</span>
+              {span.children && span.children.length > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  {span.children.length} children
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              {span.duration_ms && <span>{span.duration_ms.toFixed(2)}ms</span>}
+              <span>{expandedSpans.has(span.span_id) ? '▼' : '▶'}</span>
+            </div>
+          </div>
+          
+          {expandedSpans.has(span.span_id) && span.span_data && (
+            <div className="mt-2 p-2 bg-background rounded text-xs">
+              <div className="font-medium mb-1">Span Data:</div>
+              <pre className="whitespace-pre-wrap text-muted-foreground">
+                {JSON.stringify(span.span_data, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+        
+        {span.children && span.children.length > 0 && (
+          <div className="ml-4">
+            {renderSpanHierarchy(span.children, level + 1)}
+          </div>
+        )}
+      </div>
+    ));
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-background rounded-lg shadow-lg max-w-4xl w-full max-h-[80vh] overflow-y-auto">
+      <div className="bg-background rounded-lg shadow-lg max-w-6xl w-full max-h-[90vh] overflow-hidden flex flex-col">
         <div className="flex items-center justify-between p-4 border-b">
-          <h2 className="text-lg font-semibold">Agent Evaluation Traces</h2>
+          <div className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Agent Evaluation Traces</h2>
+            {selectedTrace && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => { setSelectedTrace(null); setViewMode('summary'); }}
+              >
+                ← Back to Summary
+              </Button>
+            )}
+          </div>
           <Button variant="ghost" size="sm" onClick={onClose}>
             <X className="w-4 h-4" />
           </Button>
         </div>
         
-        <div className="p-4 space-y-4">
-          {evaluationTraces ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Complete evaluation results showing agent performance across test scenarios with full tracing data.
-              </p>
-              
-              {/* Overall comparison */}
-              <div className="p-4 bg-secondary rounded-lg space-y-3">
-                <h3 className="font-medium">Performance Comparison</h3>
-                <div className="space-y-2">
-                  {Object.entries(evaluationTraces)
-                    .map(([name, traces]: [string, any]) => ({
-                      name,
-                      avgScore: traces.reduce((acc: number, t: any) => acc + (t.score || 0), 0) / traces.length
-                    }))
-                    .sort((a, b) => b.avgScore - a.avgScore)
-                    .map((agent, idx) => (
-                      <div key={agent.name} className="flex items-center justify-between p-2 bg-background rounded">
-                        <div className="flex items-center gap-2">
-                          {idx === 0 && <TrendingUp className="w-4 h-4 text-green-500" />}
-                          <span className={`text-sm ${idx === 0 ? 'font-medium' : ''}`}>
-                            {agent.name} {idx === 0 && '(Selected)'}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Progress value={agent.avgScore * 100} className="w-20 h-2" />
-                          <span className="text-sm font-medium w-12">
-                            {(agent.avgScore * 100).toFixed(0)}%
-                          </span>
-                        </div>
-                      </div>
-                    ))
-                  }
+        <div className="flex-1 overflow-y-auto">
+          {viewMode === 'detailed' && selectedTrace ? (
+            <div className="p-4 space-y-4">
+              <div className="p-4 bg-secondary rounded-lg">
+                <h3 className="font-medium mb-2">Trace Details: {selectedTrace.trace_id}</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>Total Spans: {selectedTrace.total_spans}</div>
+                  <div>Events: {selectedTrace.events?.length || 0}</div>
                 </div>
               </div>
-              
-              {/* Detailed traces for each agent */}
-              {Object.entries(evaluationTraces).map(([agentName, traces]: [string, any]) => (
-                <div key={agentName} className="space-y-3 border rounded-lg p-4">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium">{agentName}</h3>
-                    <Badge variant="outline">
-                      Avg: {(traces.reduce((acc: number, t: any) => acc + (t.score || 0), 0) / traces.length * 100).toFixed(0)}%
-                    </Badge>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Execution Hierarchy</h3>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setExpandedSpans(new Set(selectedTrace.spans.map((s: any) => s.span_id)))}
+                    >
+                      Expand All
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => setExpandedSpans(new Set())}
+                    >
+                      Collapse All
+                    </Button>
                   </div>
-                  
-                  <div className="space-y-3">
-                    {traces.map((trace: any, idx: number) => (
-                      <div key={idx} className="p-3 bg-secondary rounded space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="font-medium text-sm">{trace.scenario}</span>
-                          <Badge variant={trace.score >= 0.8 ? 'default' : 'secondary'}>
-                            {(trace.score * 100).toFixed(0)}%
-                          </Badge>
+                </div>
+                
+                <div className="space-y-1">
+                  {selectedTrace.execution_hierarchy && selectedTrace.execution_hierarchy.length > 0 ? (
+                    renderSpanHierarchy(selectedTrace.execution_hierarchy)
+                  ) : (
+                    <div className="p-4 bg-secondary rounded">
+                      <div className="text-sm font-medium mb-2">Flat Span List:</div>
+                      {selectedTrace.spans.map((span: any, idx: number) => (
+                        <div key={idx} className="p-2 bg-background rounded mb-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-mono bg-primary/10 px-1 rounded">
+                              {span.span_type}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              {span.duration_ms?.toFixed(2)}ms
+                            </span>
+                          </div>
+                          {span.span_data && Object.keys(span.span_data).length > 0 && (
+                            <pre className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">
+                              {JSON.stringify(span.span_data, null, 2)}
+                            </pre>
+                          )}
                         </div>
-                        
-                        {trace.reasoning && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-medium">Agent Reasoning:</div>
-                            <div className="text-xs text-muted-foreground bg-background p-2 rounded">
-                              {trace.reasoning}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {trace.tools_used && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-medium">Tools Used:</div>
-                            <div className="flex gap-1 flex-wrap">
-                              {trace.tools_used.map((tool: string, toolIdx: number) => (
-                                <Badge key={toolIdx} variant="outline" className="text-xs">
-                                  {tool}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {trace.trace_data && (
-                          <div className="space-y-1">
-                            <div className="text-xs font-medium">Trace Information:</div>
-                            <div className="text-xs text-muted-foreground space-y-1">
-                              <div>Trace ID: <code className="bg-background px-1 rounded">{trace.trace_data.trace_id || 'Available'}</code></div>
-                              {trace.trace_data.duration && <div>Duration: {trace.trace_data.duration}ms</div>}
-                              {trace.trace_data.tokens && <div>Tokens: {trace.trace_data.tokens}</div>}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {selectedTrace.events && selectedTrace.events.length > 0 && (
+                  <div className="space-y-2">
+                    <h3 className="font-medium">Events</h3>
+                    <div className="space-y-1">
+                      {selectedTrace.events.map((event: any, idx: number) => (
+                        <div key={idx} className="p-2 bg-secondary rounded text-xs">
+                          <div className="font-medium">{event.event_type}</div>
+                          <div className="text-muted-foreground">{event.timestamp}</div>
+                          {event.data && (
+                            <pre className="mt-1 whitespace-pre-wrap">
+                              {JSON.stringify(event.data, null, 2)}
+                            </pre>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              ))}
-              
-              <div className="p-4 bg-secondary rounded-lg">
-                <h3 className="font-medium mb-2">Evaluation Methodology</h3>
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <div>• Agents tested against standardized wellness scenarios</div>
-                  <div>• Scoring: 50% tool usage + 50% outcome quality</div>
-                  <div>• Full OpenAI Agents SDK tracing captured</div>
-                  <div>• Best performing agent automatically deployed</div>
-                </div>
+                )}
               </div>
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
-              <p className="text-muted-foreground">No evaluation traces available</p>
+            <div className="p-4 space-y-4">
+              {evaluationTraces ? (
+                <div className="space-y-4">
+                  <p className="text-sm text-muted-foreground">
+                    Complete evaluation results showing agent performance across test scenarios with full OpenAI SDK tracing data.
+                  </p>
+                  
+                  {/* Overall comparison */}
+                  <div className="p-4 bg-secondary rounded-lg space-y-3">
+                    <h3 className="font-medium">Performance Comparison</h3>
+                    <div className="space-y-2">
+                      {Object.entries(evaluationTraces)
+                        .map(([name, traces]: [string, any]) => ({
+                          name,
+                          avgScore: traces.reduce((acc: number, t: any) => acc + (t.score || 0), 0) / traces.length
+                        }))
+                        .sort((a, b) => b.avgScore - a.avgScore)
+                        .map((agent, idx) => (
+                          <div key={agent.name} className="flex items-center justify-between p-2 bg-background rounded">
+                            <div className="flex items-center gap-2">
+                              {idx === 0 && <TrendingUp className="w-4 h-4 text-green-500" />}
+                              <span className={`text-sm ${idx === 0 ? 'font-medium' : ''}`}>
+                                {agent.name} {idx === 0 && '(Selected)'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Progress value={agent.avgScore * 100} className="w-20 h-2" />
+                              <span className="text-sm font-medium w-12">
+                                {(agent.avgScore * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        ))
+                      }
+                    </div>
+                  </div>
+                  
+                  {/* Detailed traces for each agent */}
+                  {Object.entries(evaluationTraces).map(([agentName, traces]: [string, any]) => (
+                    <div key={agentName} className="space-y-3 border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="font-medium">{agentName}</h3>
+                        <Badge variant="outline">
+                          Avg: {(traces.reduce((acc: number, t: any) => acc + (t.score || 0), 0) / traces.length * 100).toFixed(0)}%
+                        </Badge>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        {traces.map((trace: any, idx: number) => (
+                          <div key={idx} className="p-3 bg-secondary rounded space-y-2">
+                            <div className="flex justify-between items-center">
+                              <span className="font-medium text-sm">{trace.scenario}</span>
+                              <div className="flex items-center gap-2">
+                                <Badge variant={trace.score >= 0.8 ? 'default' : 'secondary'}>
+                                  {(trace.score * 100).toFixed(0)}%
+                                </Badge>
+                                {trace.trace_data?.trace_id && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => fetchFullTraceData(trace.trace_data.trace_id)}
+                                  >
+                                    View Details
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {trace.reasoning && (
+                              <div className="space-y-1">
+                                <div className="text-xs font-medium">Agent Reasoning:</div>
+                                <div className="text-xs text-muted-foreground bg-background p-2 rounded">
+                                  {trace.reasoning}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {trace.tools_used && (
+                              <div className="space-y-1">
+                                <div className="text-xs font-medium">Tools Used:</div>
+                                <div className="flex gap-1 flex-wrap">
+                                  {trace.tools_used.map((tool: string, toolIdx: number) => (
+                                    <Badge key={toolIdx} variant="outline" className="text-xs">
+                                      {tool}
+                                    </Badge>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                            
+                            {trace.trace_data && (
+                              <div className="space-y-1">
+                                <div className="text-xs font-medium">OpenAI SDK Trace:</div>
+                                <div className="text-xs text-muted-foreground space-y-1">
+                                  <div>Trace ID: <code className="bg-background px-1 rounded">{trace.trace_data.trace_id}</code></div>
+                                  {trace.trace_data.total_duration_ms && <div>Duration: {trace.trace_data.total_duration_ms.toFixed(2)}ms</div>}
+                                  {trace.trace_data.spans && <div>Spans: {trace.trace_data.spans.length}</div>}
+                                  {trace.trace_data.llm_generations && <div>LLM Calls: {trace.trace_data.llm_generations.length}</div>}
+                                  {trace.trace_data.function_calls && <div>Function Calls: {trace.trace_data.function_calls.length}</div>}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  <div className="p-4 bg-secondary rounded-lg">
+                    <h3 className="font-medium mb-2">Enhanced Tracing Capabilities</h3>
+                    <div className="text-xs text-muted-foreground space-y-1">
+                      <div>• Complete OpenAI Agents SDK trace capture with spans and events</div>
+                      <div>• Agent reasoning, LLM generations, and function call tracking</div>
+                      <div>• Hierarchical execution flow visualization</div>
+                      <div>• Performance metrics: 50% tool usage + 50% outcome quality</div>
+                      <div>• Click "View Details" to explore full trace execution logs</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <Brain className="w-12 h-12 text-muted-foreground mx-auto mb-2" />
+                  <p className="text-muted-foreground">No evaluation traces available</p>
+                </div>
+              )}
             </div>
           )}
         </div>
