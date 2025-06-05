@@ -20,6 +20,7 @@ FastAPI backend for the ReTool-for-Life meta-agent wellness platform. This servi
 - `GET /api/users/{user_id}/agent-status` - Get agent status and performance metrics
 - `POST /api/users/{user_id}/trigger-demo` - Run the complete demo sequence
 - `POST /api/users/{user_id}/chat` - Chat with the active agent
+- `GET /api/evaluation-traces` - Get latest agent evaluation traces
 - `WS /ws/{user_id}` - WebSocket for real-time updates
 
 ### Demo Workflow (PRD Requirements)
@@ -94,9 +95,30 @@ curl -X POST http://localhost:8000/api/users/demo-user-001/generate-agent
 curl -X POST http://localhost:8000/api/users/demo-user-001/trigger-demo
 ```
 
+### Tracing & Observability
+
+The system implements OpenAI Agents SDK tracing to provide full visibility into agent evaluation:
+
+1. **Automatic Capture**: Tracing is enabled during agent evaluation
+2. **Evaluation Transparency**: See how each agent performs on test scenarios
+3. **Score Breakdown**: View individual scenario scores and responses
+4. **Real-time Updates**: Traces sent via WebSocket during generation
+5. **Frontend Display**: Dedicated "Evaluation" tab shows all trace data
+
+To view evaluation traces:
+```bash
+curl http://localhost:8000/api/evaluation-traces
+```
+
+Tracing configuration in `agents_sdk.py`:
+- Privacy-conscious: `trace_include_sensitive_data=False`
+- Captures spans, events, and trace IDs
+- Compatible with both SDK and WhatsApp agents
+
 ## Key Features
 - **Meta-Agent Orchestration** - Automatically generates and evaluates multiple agent variants
 - **RLAIF Optimization** - Agents improve based on performance metrics
 - **Real-time Updates** - WebSocket support for live agent actions
 - **Approval System** - Human-in-the-loop for sensitive actions
 - **Mock & Real Integrations** - Twilio for SMS, mocks for other services
+- **OpenAI Tracing** - Full evaluation tracing with OpenAI Agents SDK for transparency
