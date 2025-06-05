@@ -1,4 +1,4 @@
-# ReTool-for-Life 🧬
+# Ambient 🧬
 
 **A meta-agent wellness platform that auto-generates personalized AI agents in one click**
 
@@ -20,11 +20,11 @@ ReTool-for-Life solves the "cold start" problem for wellness AI agents. Instead 
 ┌─────────────────────────────┴───────────────────────────────┐
 │                    FastAPI Backend                          │
 │  ┌─────────────────────────────────────────────────────┐    │
-│  │              Meta-Agent Orchestrator                 │   │
-│  │     • Generates agent variants (Sleep, Stress, etc)  │   │
-│  │     • Evaluates on test scenarios                    │   │
-│  │     • Deploys best performer                         │   │
-│  │     • RLAIF optimization loop                        │   │
+│  │              Meta-Agent Orchestrator                │    │
+│  │     • Generates agent variants (Sleep, Stress, etc) │    │
+│  │     • Evaluates on test scenarios                   │    │
+│  │     • Deploys best performer                        │    │
+│  │     • RLAIF optimization loop                       │    │
 │  └─────────────────────────────────────────────────────┘    │
 │                                                             │
 │  ┌─────────────────────────────────────────────────────┐    │
@@ -116,5 +116,5 @@ Our agents execute a complete wellness workflow throughout the day:
 
 - **Backend**: FastAPI, OpenAI Agents SDK, Twilio
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS, WebSocket
-- **AI Models**: GPT-4o (complex tasks), GPT-4o-mini (optimization)
+- **AI Models**: GPT-4.1 (complex tasks), GPT-4.1 (optimization)
 - **Integrations**: WhatsApp (real), Health/Calendar/Commerce (mocked for demo)
