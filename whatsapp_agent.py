@@ -1,10 +1,18 @@
-
-
 import os
 import json
 import asyncio
 import time
 import logging
+
+# Load environment variables from .env file
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    import subprocess, sys
+    subprocess.run([sys.executable, "-m", "pip", "install", "python-dotenv"], check=True)
+    from dotenv import load_dotenv
+    load_dotenv()
 
 # Install required packages if not already installed
 try:
@@ -144,7 +152,7 @@ def run_shortcut_action() -> str:
 @function_tool
 def get_sleep_data(path: str) -> dict:
     """
-    Reads the user’s sleep data from a JSON file.
+    Reads the user's sleep data from a JSON file.
     Returns a dict with the parsed contents.
     """
     try:
@@ -169,16 +177,16 @@ def send_text(message: str) -> str:
 def ask_move_meeting() -> str:
     """
     Sends a WhatsApp prompt asking approval to move the 7:30 AM 1:1 tomorrow.
-    Does NOT read or echo the user’s reply.
+    Does NOT read or echo the user's reply.
     """
-    prompt = "Do you approve moving tomorrow’s 7:30 AM 1:1 to a later time? Reply YES or NO."
+    prompt = "Do you approve moving tomorrow's 7:30 AM 1:1 to a later time? Reply YES or NO."
     send_result = send_whatsapp_text(prompt)
     logging.info(f"ask_move_meeting → sent prompt, got: {send_result}")
     return send_result
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# SET UP “ORCHESTRATOR” AGENT (Only Runs at 9:00 AM)
+# SET UP "ORCHESTRATOR" AGENT (Only Runs at 9:00 AM)
 # ──────────────────────────────────────────────────────────────────────────────
 
 orchestrator_agent = Agent(
@@ -194,35 +202,40 @@ You are a daily health‐and‐productivity assistant, and you only run at 9:00 
          – Move the 7:30 AM 1:1 tomorrow to an available slot.
          – Enable screentime limits at 10 PM tonight."
 3. Call send_text with exactly that message.
-4. Call ask_move_meeting() to send the “move meeting” prompt.
+4. Call ask_move_meeting() to send the "move meeting" prompt.
 
-Do NOT attempt to validate or echo the user’s reply.
+Do NOT attempt to validate or echo the user's reply.
 """,
     tools=[get_sleep_data, send_text, ask_move_meeting]
 )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# ASYNCHRONOUS “FAKE TIME” PROMPTS
+# ASYNCHRONOUS "AUTOMATED TIME" PROMPTS
 # ──────────────────────────────────────────────────────────────────────────────
 
 async def main():
-    print("\n🚀 Demo: Press Enter to simulate 9:00 AM, 7:30 PM, and 10:00 PM 🚀\n")
+    print("\n🚀 Demo: Automatically triggering 9:00 AM, 7:30 PM, and 10:00 PM events 🚀\n")
 
     # 1) Simulate 9:00 AM via the Agent
-    input("⏰ Press Enter to simulate it’s now 9:00 AM >>> ")
     print("\n[Trigger] EVENT_9AM\n")
     result_9am = await Runner.run(orchestrator_agent, "EVENT_9AM")
-    print("→ Agent result (9AM):", result_9pm := result_9am, "\n")
+    print("→ Agent result (9AM):", result_9am, "\n")
+
+    # Wait 10 seconds
+    print("⏰ Waiting 10 seconds before 7:30 PM event...\n")
+    await asyncio.sleep(10)
 
     # 2) Simulate 7:30 PM by calling start_screentime_limit_action() directly
-    input("\n⏰ Press Enter to simulate it’s now 7:30 PM >>> ")
     print("\n[Trigger] Direct call: start_screentime_limit_action()\n")
     result_730pm = start_screentime_limit_action()
     print("→ start_screentime_limit_action result:", result_730pm, "\n")
 
+    # Wait 10 seconds
+    print("⏰ Waiting 10 seconds before 10:00 PM event...\n")
+    await asyncio.sleep(10)
+
     # 3) Simulate 10:00 PM by calling activate_screentime_action() & run_shortcut_action()
-    input("\n⏰ Press Enter to simulate it’s now 10:00 PM >>> ")
     print("\n[Trigger] Direct call: activate_screentime_action() & run_shortcut_action()\n")
     result_10pm_msg = activate_screentime_action()
     print("→ activate_screentime_action result:", result_10pm_msg)
