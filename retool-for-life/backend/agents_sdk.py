@@ -76,23 +76,40 @@ class WellnessAgentSDK:
         - Phone number: {self.user_profile.get('phone', os.getenv('DEMO_PHONE_NUMBER'))}
         """
     
-    async def process_message(self, user_message: str) -> Dict[str, Any]:
-        """Process a user message and return agent response"""
+    async def process_message(self, user_message: str, capture_traces: bool = False) -> Dict[str, Any]:
+        """Process a user message and return agent response with optional tracing"""
         try:
+            # Configure tracing
+            config = RunConfig(
+                tracing_disabled=not capture_traces,
+                trace_include_sensitive_data=False  # Privacy-conscious by default
+            )
+            
             # Use sync_to_async to handle the synchronous SDK in async context
             import asyncio
             loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(
-                None, 
-                Runner.run_sync, 
-                self.agent, 
-                user_message
-            )
+            
+            # Run with tracing context
+            with trace(f"Agent evaluation: {self.name}"):
+                result = await loop.run_in_executor(
+                    None, 
+                    lambda: Runner.run_sync(self.agent, user_message, config=config)
+                )
+            
+            # Extract trace data if available
+            trace_data = None
+            if capture_traces and hasattr(result, 'trace'):
+                trace_data = {
+                    "trace_id": getattr(result.trace, 'id', None),
+                    "spans": getattr(result.trace, 'spans', []),
+                    "events": getattr(result.trace, 'events', [])
+                }
             
             return {
                 "message": result.final_output if hasattr(result, 'final_output') else str(result),
                 "tool_calls": [],  # SDK handles tool calls internally
-                "success": True
+                "success": True,
+                "trace_data": trace_data
             }
         except Exception as e:
             logger.error(f"Error processing message: {str(e)}")
@@ -100,7 +117,8 @@ class WellnessAgentSDK:
                 "message": "I encountered an error processing your request. Please try again.",
                 "tool_calls": [],
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "trace_data": None
             }
     
     async def execute_demo_task(self, task_description: str) -> Dict[str, Any]:

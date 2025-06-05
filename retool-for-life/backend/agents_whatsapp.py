@@ -195,16 +195,41 @@ def send_sleep_mode_sms() -> str:
 # ──────────────────────────────────────────────────────────────────────────────
 
 @function_tool
-def get_sleep_data(path: str) -> dict:
+def get_sleep_data(user_id: str) -> dict:
     """
-    Reads the user's sleep data from a JSON file.
-    Returns a dict with the parsed contents.
+    Gets the user's sleep data.
+    Returns a dict with sleep metrics.
     """
     try:
-        with open(path, "r") as f:
-            data = json.load(f)
-        logging.info(f"get_sleep_data → {data}")
-        return data
+        # Try to load from sleep_data.json if available
+        try:
+            with open("sleep_data.json", "r") as f:
+                data = json.load(f)
+                if user_id in data:
+                    logging.info(f"get_sleep_data → {data[user_id]}")
+                    return data[user_id]
+        except FileNotFoundError:
+            pass
+        
+        # Return mock data if no file
+        mock_data = {
+            "last_night": {
+                "duration_hours": 6.5,
+                "quality": "moderate - woke up 2 times",
+                "sleep_score": 75
+            },
+            "weekly_average": {
+                "duration_hours": 7.2,
+                "quality_score": 80
+            },
+            "recommendations": [
+                "Maintain consistent bedtime",
+                "Avoid screens 1 hour before sleep",
+                "Consider meditation before bed"
+            ]
+        }
+        logging.info(f"get_sleep_data → {mock_data}")
+        return mock_data
     except Exception as e:
         logging.error(f"get_sleep_data error: {e}")
         return {"error": f"Failed to load sleep data: {e}"}
@@ -240,7 +265,7 @@ orchestrator_agent = Agent(
     instructions="""
 You are a daily health‐and‐productivity assistant, and you only run at 9:00 AM:
 
-1. Call get_sleep_data("sleep_data.json").
+1. Call get_sleep_data("demo-user-001").
 2. Compose a message that:
      • Notes last night's sleep duration and quality.
      • Says: "To reach 8 hours tomorrow night:
@@ -299,35 +324,49 @@ async def main():
 class WhatsAppWellnessAgent:
     """WhatsApp wellness agent for orchestrator integration"""
     
-    def __init__(self, user_profile: dict, model: str = "gpt-4o"):
+    def __init__(self, user_profile: dict, model: str = "gpt-4.1"):
         self.user_profile = user_profile
         self.model = model
         self.name = f"WhatsApp Wellness Agent for {user_profile['name']}"
         self.agent = orchestrator_agent  # Use the pre-configured agent
         
-    async def process_message(self, user_message: str) -> dict:
+    async def process_message(self, user_message: str, capture_traces: bool = False) -> dict:
         """Process a user message and return agent response"""
         try:
+            # Note: WhatsApp agents don't have built-in tracing like SDK agents
+            # but we can still return a compatible response format
             result = await Runner.run(self.agent, user_message)
-            return {
+            
+            response = {
                 "message": str(result),
                 "tool_calls": [],
                 "success": True
             }
+            
+            # Add placeholder trace data if requested
+            if capture_traces:
+                response["trace_data"] = {
+                    "trace_id": f"whatsapp-{int(time.time())}",
+                    "spans": [],
+                    "events": []
+                }
+            
+            return response
         except Exception as e:
             logging.error(f"Error processing message: {str(e)}")
             return {
                 "message": "I encountered an error processing your request.",
                 "tool_calls": [],
                 "success": False,
-                "error": str(e)
+                "error": str(e),
+                "trace_data": None if capture_traces else None
             }
 
 
 class WhatsAppSleepAgent(WhatsAppWellnessAgent):
     """WhatsApp sleep optimization agent"""
     
-    def __init__(self, user_profile: dict, model: str = "gpt-4o"):
+    def __init__(self, user_profile: dict, model: str = "gpt-4.1"):
         super().__init__(user_profile, model)
         self.name = f"WhatsApp Sleep Agent for {user_profile['name']}"
         

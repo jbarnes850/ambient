@@ -58,6 +58,7 @@ export default function Dashboard() {
   const [isDemoRunning, setIsDemoRunning] = useState(false);
   const [demoResults, setDemoResults] = useState<any[]>([]);
   const [pendingApprovals, setPendingApprovals] = useState<any[]>([]);
+  const [evaluationTraces, setEvaluationTraces] = useState<any>(null);
   
   const { messages, isConnected } = useWebSocket(
     selectedUser ? `ws://localhost:8000/ws/${selectedUser.id}` : null
@@ -73,6 +74,14 @@ export default function Dashboard() {
     const interval = setInterval(fetchPendingApprovals, 2000);
     return () => clearInterval(interval);
   }, []);
+
+  // Handle WebSocket messages for evaluation traces
+  useEffect(() => {
+    const latestMessage = messages[messages.length - 1];
+    if (latestMessage?.type === 'agent_generation' && latestMessage?.evaluation_traces) {
+      setEvaluationTraces(latestMessage.evaluation_traces);
+    }
+  }, [messages]);
 
   const fetchUsers = async () => {
     try {
@@ -394,7 +403,18 @@ export default function Dashboard() {
               <CardTitle>Performance Metrics</CardTitle>
               <CardDescription>System optimization and performance tracking</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent>
+              <Tabs defaultValue="metrics">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="metrics">Performance</TabsTrigger>
+                  <TabsTrigger value="traces">
+                    Evaluation {evaluationTraces && (
+                      <Badge className="ml-2" variant="outline">New</Badge>
+                    )}
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="metrics" className="space-y-4">
               {agentStatus?.performance && (
                 <div className="space-y-3">
                   {Object.entries(agentStatus.performance).map(([key, value]) => (
@@ -437,6 +457,47 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
+                </TabsContent>
+                
+                <TabsContent value="traces" className="space-y-2">
+                  {evaluationTraces ? (
+                    <div className="space-y-3">
+                      <h4 className="text-sm font-medium">Agent Evaluation Results</h4>
+                      {Object.entries(evaluationTraces).map(([agentName, traces]: [string, any]) => (
+                        <div key={agentName} className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">{agentName}</span>
+                            <Badge variant="outline">
+                              Score: {traces.reduce((acc: number, t: any) => acc + (t.score || 0), 0) / traces.length * 100}%
+                            </Badge>
+                          </div>
+                          <div className="space-y-1">
+                            {traces.map((trace: any, idx: number) => (
+                              <div key={idx} className="text-xs p-2 bg-secondary rounded">
+                                <div className="flex justify-between items-center mb-1">
+                                  <span className="font-medium">{trace.scenario}</span>
+                                  <Badge variant={trace.score >= 0.8 ? 'default' : 'secondary'} className="text-xs">
+                                    {(trace.score * 100).toFixed(0)}%
+                                  </Badge>
+                                </div>
+                                {trace.trace_data && (
+                                  <p className="text-muted-foreground text-xs">
+                                    Trace ID: {trace.trace_data.trace_id || 'Available'}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center text-muted-foreground py-8 text-sm">
+                      Generate an agent to see evaluation traces
+                    </p>
+                  )}
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>

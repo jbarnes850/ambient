@@ -87,7 +87,7 @@ class MetaAgentOrchestrator:
         
         # Map goals to agent types
         goal_agent_map = {
-            "better_sleep": "whatsapp_sleep_specialist" if prefers_whatsapp and WhatsAppSleepAgent else "sleep_specialist",
+            "better_sleep": "whatsapp_sleep_specialist" if prefers_whatsapp and WhatsAppSleepAgent and "whatsapp_sleep_specialist" in self.agent_templates else "sleep_specialist",
             "stress_reduction": "stress_manager",
             "stress_management": "stress_manager",
             "exercise_consistency": "fitness_coach",
@@ -116,18 +116,24 @@ class MetaAgentOrchestrator:
         self,
         agents: List[WellnessAgent],
         test_scenarios: List[Dict[str, Any]]
-    ) -> Dict[str, float]:
-        """Run evaluation scenarios and score agents"""
+    ) -> Dict[str, Any]:
+        """Run evaluation scenarios and score agents with trace data"""
         
         scores = {}
+        evaluation_traces = {}
         
         for agent in agents:
             total_score = 0
+            agent_traces = []
             
             for scenario in test_scenarios:
                 # Process the scenario with the agent
                 try:
-                    response = await agent.process_message(scenario["prompt"])
+                    # All agents now support capture_traces parameter
+                    response = await agent.process_message(
+                        scenario["prompt"], 
+                        capture_traces=True
+                    )
                     
                     # Score based on expected outcomes
                     score = await self._calculate_score(
@@ -136,15 +142,36 @@ class MetaAgentOrchestrator:
                         scenario.get("required_tools", [])
                     )
                     total_score += score
+                    
+                    # Capture trace data if available
+                    trace_info = {
+                        "scenario": scenario["name"],
+                        "prompt": scenario["prompt"],
+                        "score": score,
+                        "response": response.get("message", ""),
+                        "trace_data": response.get("trace_data", None)
+                    }
+                    agent_traces.append(trace_info)
+                    
                 except Exception as e:
                     print(f"Error evaluating agent {agent.name}: {e}")
                     total_score += 0.5  # Partial credit for not crashing
+                    agent_traces.append({
+                        "scenario": scenario["name"],
+                        "error": str(e),
+                        "score": 0.5
+                    })
             
             # Average score across scenarios
             avg_score = total_score / len(test_scenarios) if test_scenarios else 0
-            scores[f"{agent.name} ({agent.model})"] = avg_score
+            agent_key = f"{agent.name} ({agent.model})"
+            scores[agent_key] = avg_score
+            evaluation_traces[agent_key] = agent_traces
         
-        return scores
+        return {
+            "scores": scores,
+            "traces": evaluation_traces
+        }
     
     async def _calculate_score(
         self,
@@ -307,21 +334,25 @@ def load_test_scenarios(persona_type: Optional[str] = None) -> List[Dict[str, An
     # Base scenarios that apply to all agents
     scenarios = [
         {
+            "name": "Sleep Issues",
             "prompt": "I had trouble sleeping last night and feel tired. What should I do?",
             "expected_outcomes": ["sleep", "recommendation", "insight"],
             "required_tools": ["get_health_metrics"]
         },
         {
+            "name": "Schedule Optimization",
             "prompt": "Can you check my schedule and help me optimize it for better wellness?",
             "expected_outcomes": ["calendar", "optimization", "suggestion"],
             "required_tools": ["optimize_calendar"]
         },
         {
+            "name": "Stress Management",
             "prompt": "I'm feeling stressed. What products might help?",
             "expected_outcomes": ["stress", "product", "recommendation"],
             "required_tools": ["search_wellness_products"]
         },
         {
+            "name": "Hydration Reminder",
             "prompt": "Send me a reminder to drink water",
             "expected_outcomes": ["reminder", "hydration"],
             "required_tools": ["send_sms"]
@@ -332,6 +363,7 @@ def load_test_scenarios(persona_type: Optional[str] = None) -> List[Dict[str, An
     if persona_type == "high_stress":
         scenarios.extend([
             {
+                "name": "Meeting Overload",
                 "prompt": "My meetings are back-to-back today. Help!",
                 "expected_outcomes": ["break", "schedule", "stress"],
                 "required_tools": ["optimize_calendar", "send_sms"]

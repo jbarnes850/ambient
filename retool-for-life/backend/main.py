@@ -41,6 +41,7 @@ class AppState:
         self.websocket_manager = WebSocketManager()
         self.demo_results = {}
         self.agent_traces = {}
+        self.evaluation_traces = {}
         
     def _load_users(self):
         """Load synthetic users from JSON"""
@@ -163,8 +164,10 @@ async def generate_agent(
         # Load test scenarios
         test_scenarios = load_test_scenarios()
         
-        # Evaluate agents
-        scores = await app_state.orchestrator.evaluate_agents(agents, test_scenarios)
+        # Evaluate agents (now returns dict with scores and traces)
+        evaluation_result = await app_state.orchestrator.evaluate_agents(agents, test_scenarios)
+        scores = evaluation_result["scores"]
+        traces = evaluation_result["traces"]
         
         # Deploy best agent
         best_agent_name = max(scores, key=scores.get)
@@ -174,13 +177,17 @@ async def generate_agent(
         # Initialize trace storage
         app_state.agent_traces[agent_id] = []
         
-        # Notify completion
+        # Store evaluation traces for later retrieval
+        app_state.evaluation_traces = traces
+        
+        # Notify completion with trace data
         await app_state.websocket_manager.send_personal_message({
             "type": "agent_generation",
             "status": "completed",
             "agent_id": agent_id,
             "agent_name": best_agent.name,
             "evaluation_scores": scores,
+            "evaluation_traces": traces,
             "timestamp": datetime.now().isoformat()
         }, user_id)
         
@@ -190,6 +197,7 @@ async def generate_agent(
             "agent_type": best_agent.__class__.__name__,
             "model": best_agent.model,
             "evaluation_scores": scores,
+            "evaluation_traces": traces,
             "deployment_status": "active"
         }
         
@@ -238,6 +246,19 @@ async def get_agent_status(user_id: str):
         "recent_actions": traces,
         "performance": rewards,
         "health_status": "active"
+    }
+
+
+@app.get("/api/evaluation-traces")
+async def get_evaluation_traces():
+    """Get the latest evaluation traces showing how agents were evaluated"""
+    
+    if not app_state.evaluation_traces:
+        raise HTTPException(status_code=404, detail="No evaluation traces available")
+    
+    return {
+        "traces": app_state.evaluation_traces,
+        "timestamp": datetime.now().isoformat()
     }
 
 
