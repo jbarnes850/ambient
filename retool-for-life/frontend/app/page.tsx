@@ -45,6 +45,9 @@ interface User {
   id: string;
   name: string;
   wellness_goals: string[];
+  preferences?: {
+    messaging_channel?: string;
+  };
 }
 
 export default function Dashboard() {
@@ -227,6 +230,9 @@ export default function Dashboard() {
                           </div>
                         ))}
                       </div>
+                      <div className="text-xs text-muted-foreground mt-1">
+                        Prefers: {user.preferences?.messaging_channel || 'SMS'}
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -236,7 +242,7 @@ export default function Dashboard() {
               <div className="space-y-2">
                 <ConnectionStatus service="Health Data" connected={true} icon={<Heart className="w-4 h-4" />} />
                 <ConnectionStatus service="Calendar" connected={true} icon={<Calendar className="w-4 h-4" />} />
-                <ConnectionStatus service="Messaging" connected={true} icon={<MessageSquare className="w-4 h-4" />} />
+                <ConnectionStatus service="SMS/WhatsApp" connected={true} icon={<MessageSquare className="w-4 h-4" />} />
                 <ConnectionStatus service="Commerce" connected={true} icon={<Package className="w-4 h-4" />} />
               </div>
               

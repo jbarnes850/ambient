@@ -32,6 +32,15 @@ except ImportError:
             StressManagementAgent, FitnessAgent, NutritionAgent
         )
         print("Using legacy agents implementation")
+
+# Import WhatsApp agents
+try:
+    from agents_whatsapp import WhatsAppWellnessAgent, WhatsAppSleepAgent
+    print("WhatsApp agents available")
+except ImportError:
+    WhatsAppWellnessAgent = None
+    WhatsAppSleepAgent = None
+    print("WhatsApp agents not available")
 from openai import AsyncOpenAI
 import os
 from dotenv import load_dotenv
@@ -50,6 +59,13 @@ class MetaAgentOrchestrator:
             "fitness_coach": FitnessAgent,
             "nutrition_advisor": NutritionAgent
         }
+        
+        # Add WhatsApp agents if available
+        if WhatsAppSleepAgent:
+            self.agent_templates["whatsapp_sleep_specialist"] = WhatsAppSleepAgent
+        if WhatsAppWellnessAgent:
+            self.agent_templates["whatsapp_wellness"] = WhatsAppWellnessAgent
+            
         self.active_agents: Dict[str, WellnessAgent] = {}
         
     async def generate_agent_suite(
@@ -63,9 +79,12 @@ class MetaAgentOrchestrator:
         # Determine which agents to create based on user goals
         user_goals = user_profile["preferences"]["wellness_goals"]
         
+        # Check if user prefers WhatsApp
+        prefers_whatsapp = user_profile.get("preferences", {}).get("messaging_channel") == "whatsapp"
+        
         # Map goals to agent types
         goal_agent_map = {
-            "better_sleep": "sleep_specialist",
+            "better_sleep": "whatsapp_sleep_specialist" if prefers_whatsapp and WhatsAppSleepAgent else "sleep_specialist",
             "stress_reduction": "stress_manager",
             "stress_management": "stress_manager",
             "exercise_consistency": "fitness_coach",

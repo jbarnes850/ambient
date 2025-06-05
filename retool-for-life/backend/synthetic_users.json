@@ -32,7 +32,8 @@
         "morning_check": "07:00",
         "midday_reminder": "12:00",
         "evening_wind_down": "21:00"
-      }
+      },
+      "messaging_channel": "whatsapp"
     },
     "recent_wellness_purchases": [
       {
@@ -80,7 +81,8 @@
         "morning_check": "06:00",
         "midday_reminder": "13:00",
         "evening_wind_down": "22:00"
-      }
+      },
+      "messaging_channel": "sms"
     },
     "recent_wellness_purchases": [
       {
