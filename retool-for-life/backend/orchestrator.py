@@ -101,14 +101,14 @@ class MetaAgentOrchestrator:
             if agent_type and agent_type not in created_types:
                 agent_class = self.agent_templates[agent_type]
                 # Create with different model variations
-                agents.append(agent_class(user_profile, model="gpt-4o"))
-                # Could add gpt-4o-mini variant for comparison
-                agents.append(agent_class(user_profile, model="gpt-4o-mini"))
+                agents.append(agent_class(user_profile, model="gpt-4.1"))
+            
+                agents.append(agent_class(user_profile, model="gpt-4.1-mini"))
                 created_types.add(agent_type)
         
         # Ensure at least one general wellness agent
         if not agents:
-            agents.append(WellnessAgent(user_profile, model="gpt-4o"))
+            agents.append(WellnessAgent(user_profile, model="gpt-4.1"))
         
         return agents
     
@@ -312,7 +312,7 @@ class RLAIFOptimizer:
         """
         
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",  # Use efficient model for optimization
+            model="gpt-4.1-mini",  # Use efficient model for optimization
             messages=[
                 {"role": "system", "content": "You are an AI agent optimization expert."},
                 {"role": "user", "content": improvement_prompt}

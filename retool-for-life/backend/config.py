@@ -13,8 +13,8 @@ class Settings:
     
     # API Settings
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL_DEFAULT = "gpt-4o"
-    OPENAI_MODEL_FAST = "gpt-4o-mini"
+    OPENAI_MODEL_DEFAULT = "gpt-4.1"
+    OPENAI_MODEL_FAST = "gpt-4.1"
     
     # Twilio Settings
     TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")

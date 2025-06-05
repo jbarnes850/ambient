@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 class WellnessAgentSDK:
     """Base wellness agent using OpenAI Agents SDK"""
     
-    def __init__(self, user_profile: Dict[str, Any], model: str = "gpt-4o"):
+    def __init__(self, user_profile: Dict[str, Any], model: str = "gpt-4.1"):
         self.user_profile = user_profile
         self.model = model
         self.name = f"Wellness Agent for {user_profile['name']}"
@@ -200,7 +200,7 @@ class NutritionAgentSDK(WellnessAgentSDK):
 def create_wellness_agent_sdk(
     agent_type: str, 
     user_profile: Dict[str, Any], 
-    model: str = "gpt-4o"
+    model: str = "gpt-4.1"
 ) -> WellnessAgentSDK:
     """Factory function to create specialized wellness agents"""
     
