@@ -9,15 +9,12 @@ import json
 import asyncio
 import os
 import uuid
-from dotenv import load_dotenv
 
+from config import settings
 from orchestrator import MetaAgentOrchestrator, RLAIFOptimizer, load_test_scenarios
 from agents import WellnessAgent
 from tools import approve_action, get_pending_approvals
 from mock_apis import MockHealthAPI
-
-# Load environment variables
-load_dotenv()
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -29,7 +26,7 @@ app = FastAPI(
 # Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

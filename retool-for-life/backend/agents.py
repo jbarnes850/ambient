@@ -317,6 +317,13 @@ class SleepOptimizationAgent(WellnessAgent):
         - Monitoring bedtime routines
         - Suggesting products that improve sleep quality
         - Creating optimal wind-down schedules
+        
+        For the demo workflow, execute these specific tasks:
+        - At 09:00: Pull sleep data, send SMS recap, and check for early meetings to reschedule
+        - At 19:30: Send SMS reminder about 22:00 screen-time lock
+        - At 22:00: Send SMS about locking apps, then execute iOS shortcut "lock_apps"
+        - At 22:05: Search web for best OTC melatonin, pick top-rated, send SMS with recommendation and price
+        - At 22:06: If approved, execute purchase via commerce_buy
         """
 
 
