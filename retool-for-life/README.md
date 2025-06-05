@@ -80,7 +80,7 @@ npm install
 npm run dev
 ```
 
-Visit http://localhost:3000 to see the console.
+Visit http://localhost:3003 to see the console.
 
 ## 🎮 Demo Workflow
 
