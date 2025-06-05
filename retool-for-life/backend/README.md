@@ -8,9 +8,10 @@ FastAPI backend for the ReTool-for-Life meta-agent wellness platform. This servi
 ### Core Components
 - **main.py** - FastAPI application with REST endpoints and WebSocket support
 - **orchestrator.py** - Meta-agent orchestrator for agent generation, evaluation, and RLAIF optimization
-- **agents.py** - Wellness agent implementations using OpenAI function calling
-- **agents_sdk.py** - Alternative implementation using OpenAI Agents SDK (experimental)
+- **agents_sdk.py** - Wellness agent implementations using OpenAI Agents SDK
+- **agents_whatsapp.py** - WhatsApp-specific agent implementations
 - **tools.py** - Tool implementations (SMS, health metrics, calendar, commerce, web search)
+- **tools/** - Modular tool implementations (communication, health, commerce, automation)
 - **mock_apis.py** - Mock APIs for health, calendar, and commerce data
 - **config.py** - Application configuration and settings
 
@@ -50,6 +51,9 @@ TWILIO_ACCOUNT_SID=your_twilio_sid  # Optional
 TWILIO_AUTH_TOKEN=your_twilio_token  # Optional
 TWILIO_PHONE_NUMBER=+1234567890      # Optional
 DEMO_PHONE_NUMBER=+1234567890        # Demo recipient
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886  # Twilio Sandbox
+HUMAN_WHATSAPP_NUMBER=whatsapp:+1234567890  # User's WhatsApp
+TEXTBELT_API_KEY=your_textbelt_key  # Optional for SMS
 ```
 
 ### Running the Server
@@ -64,9 +68,14 @@ uvicorn main:app --reload --port 8000
 backend/
 ├── main.py              # FastAPI app
 ├── orchestrator.py      # Meta-agent logic
-├── agents.py            # Agent implementations
-├── agents_sdk.py        # SDK implementation (experimental)
+├── agents_sdk.py        # SDK implementation
+├── agents_whatsapp.py   # WhatsApp agents
 ├── tools.py             # Tool functions
+├── tools/               # Modular tools
+│   ├── communication.py
+│   ├── health.py
+│   ├── commerce.py
+│   └── automation.py
 ├── mock_apis.py         # Mock data providers
 ├── config.py            # Settings
 ├── synthetic_users.json # Demo user profiles

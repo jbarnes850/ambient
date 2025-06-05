@@ -4,7 +4,7 @@ from typing import Dict, List, Any, Optional, Callable
 from datetime import datetime
 import json
 import asyncio
-from agents import Agent, Runner
+from agents import Agent, Runner, RunConfig, trace
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
