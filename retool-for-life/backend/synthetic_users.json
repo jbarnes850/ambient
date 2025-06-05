@@ -1,0 +1,98 @@
+[
+  {
+    "id": "demo-user-001",
+    "name": "Sarah Chen",
+    "age": 32,
+    "occupation": "Software Engineer",
+    "location": "San Francisco, CA",
+    "phone": "+14155551234",
+    "health_metrics": {
+      "avg_sleep_hours": 6.5,
+      "sleep_quality": 0.75,
+      "exercise_frequency": 3,
+      "stress_level": "moderate",
+      "heart_rate_variability": 42,
+      "resting_heart_rate": 68,
+      "last_blood_pressure": "118/78",
+      "water_intake_daily": 6.5
+    },
+    "schedule": {
+      "work_hours": "09:00-18:00",
+      "meeting_density": "high",
+      "commute_time": 0,
+      "breaks_per_day": 2,
+      "screen_time_hours": 10.5
+    },
+    "preferences": {
+      "communication_style": "concise",
+      "automation_comfort": "high",
+      "purchase_approval": "required",
+      "wellness_goals": ["better_sleep", "stress_reduction", "hydration"],
+      "notification_preferences": {
+        "morning_check": "07:00",
+        "midday_reminder": "12:00",
+        "evening_wind_down": "21:00"
+      }
+    },
+    "recent_wellness_purchases": [
+      {
+        "item": "Melatonin 5mg",
+        "date": "2024-05-15",
+        "price": 12.99
+      },
+      {
+        "item": "Blue light blocking glasses",
+        "date": "2024-04-20",
+        "price": 39.99
+      }
+    ]
+  },
+  {
+    "id": "demo-user-002",
+    "name": "Marcus Johnson",
+    "age": 45,
+    "occupation": "Executive Director",
+    "location": "New York, NY",
+    "phone": "+12125551234",
+    "health_metrics": {
+      "avg_sleep_hours": 5.5,
+      "sleep_quality": 0.60,
+      "exercise_frequency": 2,
+      "stress_level": "high",
+      "heart_rate_variability": 35,
+      "resting_heart_rate": 75,
+      "last_blood_pressure": "132/85",
+      "water_intake_daily": 4.5
+    },
+    "schedule": {
+      "work_hours": "07:00-20:00",
+      "meeting_density": "very_high",
+      "commute_time": 45,
+      "breaks_per_day": 1,
+      "screen_time_hours": 12.5
+    },
+    "preferences": {
+      "communication_style": "detailed",
+      "automation_comfort": "medium",
+      "purchase_approval": "automatic_under_50",
+      "wellness_goals": ["stress_management", "better_sleep", "exercise_consistency"],
+      "notification_preferences": {
+        "morning_check": "06:00",
+        "midday_reminder": "13:00",
+        "evening_wind_down": "22:00"
+      }
+    },
+    "recent_wellness_purchases": [
+      {
+        "item": "Ashwagandha supplements",
+        "date": "2024-05-28",
+        "price": 24.99
+      },
+      {
+        "item": "Sleep tracking mat",
+        "date": "2024-05-01",
+        "price": 149.99
+      }
+    ]
+  }
+]
