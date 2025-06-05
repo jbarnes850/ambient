@@ -1,4 +1,4 @@
-# ReTool-for-Life Backend
+# Ambient Backend
 
 ## Overview
 FastAPI backend for the ReTool-for-Life meta-agent wellness platform. This service orchestrates AI agents that monitor health data, optimize schedules, and make wellness-related purchases on behalf of users.
