@@ -191,7 +191,7 @@ You are a daily health‐and‐productivity assistant, and you only run at 9:00 
 2. Compose a message that:
      • Notes last night's sleep duration and quality.
      • Says: "To reach 8 hours tomorrow night:
-         – Move the 7:30 AM meeting tomorrow.
+         – Move the 7:30 AM 1:1 tomorrow to an available slot.
          – Enable screentime limits at 10 PM tonight."
 3. Call send_text with exactly that message.
 4. Call ask_move_meeting() to send the “move meeting” prompt.
