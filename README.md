@@ -110,6 +110,5 @@ Our agents execute a complete wellness workflow throughout the day:
 
 - **Backend**: FastAPI, OpenAI Agents SDK, Twilio
 - **Frontend**: Next.js 14, TypeScript, Tailwind CSS, WebSocket
-<<<<<<< Updated upstream
 - **AI Models**: GPT-4.1 (complex tasks), GPT-4.1 (optimization)
 - **Integrations**: WhatsApp (real), Health/Calendar/Commerce (mocked for demo)
